@@ -1,0 +1,207 @@
+---
+title: "SA23204166function"
+author: "By SA23204166金亦成"
+date: "2023-12-05"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SA23204166function}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, echo = FALSE}
+library("SA23204166")
+```
+## 函数1：RS_PA
+
+```{r}
+RS_PA <- function(X,T,a) {
+  n=dim(X)[1]
+  sig=svd(X)$d
+  sig0=matrix(rep(0,n*T),nrow = T)
+  for (t in 1:T) {
+    mat=matrix(2*rbinom(n^2,1,0.5)-1,nrow = n)
+    upper_triangle <- upper.tri(mat)
+    s_m <- matrix(0, nrow = nrow(mat), ncol = ncol(mat))
+    s_m[upper_triangle] <- mat[upper_triangle]
+    s_m[lower.tri(s_m)] <- t(s_m)[lower.tri(s_m)]
+    sig0[t,]=svd(X*s_m)$d
+  }
+  sig1=apply(sig0, 2, quantile, probs = a)
+  k=which(sig < sig1)[1]-1
+  return(k)
+}
+```
+
+### 函数1背景：
+
+平行分析（PA）是一种选取主成分个数的方法，可以通过以下几个步骤来完成：首先，生成多组随机数据的矩阵，这些矩阵和真实的数据矩阵要有相同的变量个数和被试的个数。然后，求出这组随机数据矩阵的特征值，并计算这些特征值的上$\alpha$分位数。最后，通过比较真实数据中特征值的碎石图和这组随机矩阵的平均特征值的曲线，我们可以找到两条特征值曲线的交点，根据交点的位置，我们就可以确定要抽取主成分的绝对最大数目。如果真实数据的特征值落在随机矩阵的平均特征值曲线之上，则保留这些主成分；反之，则舍弃这些主成分。
+
+为了解决具有异质噪声的数据的主成分个数选取问题，Hong(2020)中提出了随机符号翻转平行分析的方法，他将数据矩阵的每个元素进行了随机符号翻转，得到新的数据，他说明在此操作之下，数据中信号的部分被完全破坏掉同时误差的部分仍保留，因此原先数据比后得到数据主成分大的部分是该保留的主成分，由此合理的选取了具有异质噪声的数据中主成分的个数。但是给文章中限制了数据中的误差部分的范数恒定的条件，但是一般的随机图数据没法保证该条件。在我的毕业设计中，我和韩潇老师通过理论证明，发现这种方法也对于一般的随机图，只要随机图中的每个信号的信号强度随着节点个数n的变化保持在同一量级即可，且通过这种方式求得的显著的特征值的个数可以被视为是随机图中的社区个数。
+
+由此我构造了一个R函数RS_PA，只要输入一个随机图的邻接矩阵，通过该函数即可通过上述的方法识别出该随机图的显著的特征值的个数，也就是给出该随机图中蕴含的潜在的社区个数。
+
+### 函数1说明：
+#### 输入：
+- X:数据随机图的邻接矩阵,n个节点,则输入一个n行n列的0-1邻接矩阵
+- T:进行重复Random Signflips的试验次数
+- a:平行分析所采用的分位数
+
+#### 输出：
+- k:通过上述背景中Random Signflip平行分析得到的随机图邻接矩阵的显著特征值的个数，即随机图中潜在的社区个数
+
+### 函数1例子：
+#### 模拟数据：
+- 创建一个ER随机图邻接矩阵sim_data，则理论社区个数k=1，取大小为50个节点，相连概率p为0.2的ER随机图,取T为300，a为0.95
+```{r}
+set.seed(0)
+mat=matrix(rbinom(50^2,1,0.2),ncol=50)
+upper_triangle <- upper.tri(mat)
+sim_data <- matrix(0, nrow = nrow(mat), ncol = ncol(mat))
+sim_data[upper_triangle] <- mat[upper_triangle]
+sim_data[lower.tri(sim_data)] <- t(sim_data)[lower.tri(sim_data)]
+```
+- 将ER随机图邻接矩阵sim_data作用上RS_PA，观察得到的k社区个数也为1
+```{r}
+print(RS_PA(sim_data,300,0.95))
+```
+
+
+#### 真实数据：
+- Dolphins dataset:该数据集包含了由Lusseau等人（2003年）编制的，位于新西兰Doubtful Sound的一个社群中的62只海豚之间频繁关联的无向社交网络。
+```{r}
+data(dolphins)
+RS_PA(dolphins,300,0.95)
+```
+- Football dataset:该数据集包含了由M.Girvan和M.Newman编制的，涵盖了2000年秋季常规赛季美国大学分区IA间橄榄球比赛的网络。
+```{r}
+data(football)
+RS_PA(football,300,0.95)
+```
+- Karate dataset:该数据集包含了由Wayne Zachary于1977年描述的美国大学一个空手道俱乐部的34名成员之间的友谊网络。
+```{r}
+data(karate)
+RS_PA(karate,300,0.95)
+```
+- Polbooks dataset:关于美国政治的图书网络，节点表示由在线书商Amazon.com销售的有关美国政治的图书。边表示相同购买者频繁共同购买书籍，如在Amazon上的“购买了此书的顾客也购买了这些其他书籍”功能中所示。
+```{r}
+data(polbooks)
+RS_PA(polbooks,300,0.95)
+```
+
+## 函数2：beta_P_value
+
+```{r, echo = FALSE}
+library(Rcpp)
+library(RcppArmadillo)
+```
+```{Rcpp}
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::plugins(cpp11)]]
+// [[Rcpp::export]]
+double beta_P_value(arma::vec Y, arma::mat X,arma::vec beta) {
+  int n = X.n_rows;
+  int pn = X.n_cols;
+  arma::vec beta_hat = solve(trans(X) * X, trans(X) * Y);
+  arma::mat XTX_inv = inv(trans(X) * X);
+  double sigma_hat = as_scalar(trans(Y - X * beta_hat) * (Y - X * beta_hat) / (n - pn));
+  double var = 4 * sigma_hat * as_scalar(trans(beta_hat) * XTX_inv * beta_hat) -
+    2 * pow(sigma_hat, 2) * sum(diagvec(XTX_inv * XTX_inv)) +
+    2 * pow(sigma_hat, 2) * pow(sum(diagvec(XTX_inv)), 2) / (n - pn);
+  double obs = (as_scalar(trans(beta_hat-beta) * (beta_hat-beta)) - sigma_hat*sum(diagvec(XTX_inv))) / sqrt(var);
+  double P_value = 2 * (1 - R::pnorm(std::abs(obs), 0.0, 1.0, true, false));
+  return P_value;
+}
+```
+
+
+### 函数2背景：
+
+线性回归模型是最广泛使用的统计工具之一, 用于发现一个或多个解释变量与响应变量之间的关系。我们考虑异方差下的线性回归模型
+$$
+Y_i=\boldsymbol{X}_i^T \boldsymbol{\beta}_0+\epsilon_i, \quad \text { for } i=1, \ldots, n,
+$$
+
+其中 $\boldsymbol{\beta}_0=\left(\beta_{0,1}, \ldots, \beta_{0, p_n}\right)^T \in \mathbb{R}^{p_n}$ 是一个未知的参数向量。 $\left\{\epsilon_i\right\}_{i=1}^n$ 是独立于 $\left\{\boldsymbol{X}_i\right\}_{i=1}^n$ 的误差, 其中假设 $\mathrm{E}\left(\epsilon_i\right)=0, \operatorname{Var}\left(\epsilon_i\right)=\sigma_i^2$ 且任意两个误差独立。我们用 $D=\operatorname{diag}\left(\sigma_1^2, \sigma_2^2, \ldots, \sigma_n^2\right)$来表示误差方差矩阵。我们假设 $\left\{Y_i, \boldsymbol{X}_i\right\}_{i=1}^n$ 是独立同分布的观测值, 其中 $\mathrm{E}\left(\boldsymbol{X}_i\right)=\mathbf{0}_{p_n}$ 且 $\operatorname{Cov}\left(\boldsymbol{X}_i\right)=\Sigma$, 在整篇论文中我们没有对 $\boldsymbol{X}_i$ 或 $\epsilon_i$ 强加其符合任何特定分布的假设。我们定义 $\boldsymbol{Y}=\left(Y_1, \ldots, Y_n\right)^T, X=\left(\boldsymbol{X}_1, \ldots, \boldsymbol{X}_n\right)^T$ 和 $\boldsymbol{\epsilon}=\left(\epsilon_1, \ldots, \epsilon_n\right)^T,$ 
+$$
+\boldsymbol{Y}=X \boldsymbol{\beta}_0+\boldsymbol{\epsilon}
+$$
+
+对于固定维度且存在 $\sigma_\epsilon^2$ 对于所有 $i$ 使得 $\sigma_i^2=\sigma_\epsilon^2$ 的情形, 基于普通最小二乘法 (OLS)估计量, 我们可以对于 $\boldsymbol{\beta}_0$ 和 $\sigma_\epsilon^2$ 有很好的估计和统计推断的结果,
+$$
+\hat{\boldsymbol{\beta}}=\left(X^T X\right)^{-1} X^T \boldsymbol{Y} .
+$$
+
+但是在现代高维统计领域研究中, 参数维度 $p_n$ 被允许可以比 $n$ 大得多, 例如 $\log p_n / n=$ $O(1)$, 但在大多数情况下, 在相关高维统计研究论文中要求 $\boldsymbol{\beta}_0$ 中非零元素的数量随着 $n$变化不会快速增加, 即对于 $\boldsymbol{\beta}_0$ 有一定的稀疏性条件假设。然而实际上, $p_n$ 可能适度大, 即与 $n$ 大小相近或者成比例时, 我们不一定需要规定 $\boldsymbol{\beta}_0$ 稀疏。
+
+对于具有 $\lim _{n \rightarrow \infty} p_n / n=\tau \in(0,1)$ 性质的中等维度, 这是本文主要关注的维度, 一些为固定维度数据开发的经典统计推理结果不再有效。例如, 当 $p_n$ 固定时且已知常数 $c_0 \geq 0$,
+$$
+H_0:\left\|\boldsymbol{\beta}_0\right\|_2=c_0 \text { versus } H_1:\left\|\boldsymbol{\beta}_0\right\|_2 \neq c_0,
+$$
+
+我们通过计算 Z-score 统计量做检验
+$$
+\mathbb{Z}_0=\frac{\|\hat{\boldsymbol{\beta}}\|_2^2-c_0^2}{\hat{\zeta}_0},
+$$
+
+其中
+$$
+\hat{\zeta}_0^2=4 \hat{\sigma}_\epsilon^2 \hat{\boldsymbol{\beta}}^T\left(X^T X\right)^{-1} \hat{\boldsymbol{\beta}} \quad \text { and } \quad \hat{\sigma}_\epsilon^2=\frac{\|\boldsymbol{Y}-X \hat{\boldsymbol{\beta}}\|_2^2}{n-p_n} .
+$$
+
+在原假设下, $\mathbb{Z}_0 \stackrel{\mathcal{D}}{\rightarrow} N(0,1)$ 。因此, 检验 $(1.2)$ 的 $\mathrm{P}$ 值为 $2 \Phi\left(-\left|\mathbb{Z}_0\right|\right)$, 其中 $\mathbb{Z}_0$ 是 $\mathbb{Z}_0$ 的一次实现, 而 $\Phi(\cdot)$ 是标准正态分布的累积分布函数。
+
+在进行模拟之后, Guo \& Cheng (2022) 发现上述的 Z-score 统计量在中等维度假设检验下表现不是十分良好。
+
+对上述检验问题，在我的大学生创新研究课题中，我和郭潇老师提出了一个新的检验统计量$\mathbb{Z}_n=\frac{\widehat{\|\boldsymbol{\beta}\|_2^2}-c_0^2}{\hat{\zeta}_n}$，其中$\widehat{\|\boldsymbol{\beta}\|_2^2}=\|\hat{\boldsymbol{\beta}}\|_2^2-\operatorname{tr}\left\{\left(X^T X\right)^{-1}\right\} \hat{\sigma}_\epsilon^2,$$\hat{\zeta}_n^2=4 \hat{\sigma}_\epsilon^2 \hat{\boldsymbol{\beta}}^T\left(X^T X\right)^{-1} \hat{\boldsymbol{\beta}}-2 \hat{\sigma}_\epsilon^4 \operatorname{tr}\left\{\left(X^T X\right)^{-2}\right\}+2 \hat{\sigma}_\epsilon^4\left[\operatorname{tr}\left\{\left(X^T X\right)^{-1}\right\}\right]^2 /\left(n-p_n\right) .$
+通过证明我们发现，这个检验统计量在中等维度异方差情形下，可以保证渐进正态性质，即是一个非常良好的检验统计量。同时我们考虑更广泛的全局检验问题：
+$$
+H_0: \boldsymbol{\beta}_0=\boldsymbol{\beta}_0^{\text {null }} \quad \text { versus } \quad H_1: \boldsymbol{\beta}_0 \neq \boldsymbol{\beta}_0^{\text {null }}
+$$
+
+通过提出基于 $\left\|\hat{\boldsymbol{\beta}}-\boldsymbol{\beta}_0^{\text {null }}\right\|_2^2$ 的偏差和方差校正的检验统计量, 如下所示
+$$
+\mathbb{G}_n=\frac{\left\|\hat{\boldsymbol{\beta}}-\boldsymbol{\beta}_0^{\text {null }}\right\|_2^2-\operatorname{tr}\left\{\left(X^T X\right)^{-1}\right\} \hat{\sigma}_\epsilon^2}{\hat{\zeta}_*} .
+$$
+$\mathbb{G}_n$ 的构造是基于 $\hat{\boldsymbol{\beta}}-\boldsymbol{\beta}_0^{\text {null }}$ 在中 $H_0$ 下的分布与 $\hat{\boldsymbol{\beta}}$ 相同其中 $\boldsymbol{\beta}_0=\mathbf{0}_{p_n}$ 。因此, 偏差校正量 $-\operatorname{tr}\left\{\left(X^T X\right)^{-1}\right\} \hat{\sigma}_\epsilon^2$ 和方差项 $\hat{\zeta}_*^2$ 为 $\mathbb{G}_n$ 与 $\mathbb{Z}_n$ 相同。
+从 $\mathbb{Z}_n$ 的渐近结果来看, $\mathbb{G}_n$ 对于发散 $p_n$ 也是原假设下符合渐近标准正态分布, 我们最终构造出一个合适的在中等维度异方差情形下全局检验问题的检验统计量。
+
+我用Rcpp写了对应的函数beta_P_value，这个函数是基于全局检验检验统计量$\mathbb{G}_n$，在给出数据$X,Y$以及原假设参数$\beta_0^\text{null}$下求得的检验P值。
+
+### 函数2说明：
+#### 输入：
+- Y:因变量数据向量,n个样本,则输入一个n个元素的数据向量
+- X:自变量数据矩阵,n个样本,p个特征,则输入一个n行p列的数据矩阵
+- beta:全局检验中$H_0: \boldsymbol{\beta}_0=\boldsymbol{\beta}_0^{\text {null }} \quad \text {vs} \quad H_1: \boldsymbol{\beta}_0 \neq \boldsymbol{\beta}_0^{\text {null }}$中所使用原假设的参数向量，p个特征,则输入一个p个元素的参数向量
+
+#### 输出：
+- P-value:全局检验中$H_0: \boldsymbol{\beta}_0=\boldsymbol{\beta}_0^{\text {null }} \quad \text {vs} \quad H_1: \boldsymbol{\beta}_0 \neq \boldsymbol{\beta}_0^{\text {null }}$利用上述背景中所提的检验统计量$\mathbb{G}_n$在真实数据X和Y下做检验得到的P值
+
+### 函数2例子：
+#### 模拟数据：
+- 取样本个数n=1000，特征个数pn=900，自变量数据矩阵X中每个元素从标准正态分布中获取，我们假设数据异方差，即我们取误差epsilon为正态分布，其每个元素的方差随机从0-1均匀分布中得到，同时真实参数beta从0-1均匀分布中得到，Y=X*beta+epsilon
+```{r}
+set.seed(0)
+n=1000
+pn=900
+beta<-runif(pn)
+sigma<-runif(n)
+X<-matrix(rnorm(pn*n),nrow = n,ncol = pn)
+epsilon<-numeric(n)
+for(j in 1:n)epsilon[j]<-rnorm(1,mean = 0,sd = sigma)
+Y<-X%*%beta+epsilon
+```
+- 首先我们取原假设中的参数为全是0的向量，即检验真实参数是否具有显著的全是0，带入beta_P_value(Y,X,rep(0,pn))，我们发现数据是0，也就是说拒绝原假设真实参数不全是0
+```{r}
+print(beta_P_value(Y,X,rep(0,pn)))
+```
+- 我们取真实的beta到假设中，带入beta_P_value(Y,X,beta)，我们发现数据是0.9894342，也就是说无法拒绝原假设，由此可见我们提出的检验和对应的P值十分合理
+```{r}
+print(beta_P_value(Y,X,beta))
+```
+
