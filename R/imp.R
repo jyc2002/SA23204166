@@ -2,6 +2,7 @@
 #' @import bootstrap
 #' @import DAAG
 #' @import coda
+#' @useDynLib SA23204166
 #' @import microbenchmark
 NULL
 
