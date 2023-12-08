@@ -17,7 +17,7 @@ library("SA23204166")
 ```
 ## 函数1：RS_PA
 
-```{r}
+```{r,eval=FALSE}
 RS_PA <- function(X,T,a) {
   n=dim(X)[1]
   sig=svd(X)$d
@@ -98,7 +98,7 @@ RS_PA(polbooks,300,0.95)
 library(Rcpp)
 library(RcppArmadillo)
 ```
-```{Rcpp}
+```{r,eval=FALSE}
 #include <RcppArmadillo.h>
 using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]

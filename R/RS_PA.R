@@ -1,7 +1,6 @@
 #' @name RS_PA
 #' @title Random Signflips parallel analysis using R
 #' @description Random Signflips parallel analysis using R
-#' @import stats
 #' @param X the sample matrix
 #' @param T the number of trials
 #' @param a the percentile

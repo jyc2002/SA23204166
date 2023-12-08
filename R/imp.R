@@ -2,8 +2,11 @@
 #' @import bootstrap
 #' @import DAAG
 #' @import coda
-#' @useDynLib SA23204166
+#' @import Rcpp
 #' @import microbenchmark
+#' @import RcppArmadillo
+#' @import stats
+#' @useDynLib SA23204166
 NULL
 
 

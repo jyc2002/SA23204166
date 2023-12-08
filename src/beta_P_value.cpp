@@ -8,10 +8,7 @@ using namespace Rcpp;
 //' @param X a numeric matrix
 //' @param Y a numeric vector
 //' @param beta the null beta
-//' @import microbenchmark
 //' @return P value of beta global test in moderate-dimensional
-//' @import Rcpp
-//' @import RcppArmadillo
 //' @examples
 //' \dontrun{
 //' n=1000
